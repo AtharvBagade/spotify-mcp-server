@@ -1,5 +1,6 @@
 """Async Spotify API Client wrapper."""
 
+import json
 from typing import Any
 
 from src.auth import SpotifyAuthManager
@@ -78,9 +79,13 @@ class SpotifyClient:
                 )
 
         response.raise_for_status()
-        if response.status_code in (202, 204) or not response.content:
+        if response.status_code in (202, 204) or not len(response.text):
             return {}
-        return response.json()
+        try:
+            return response.json()
+        except (ValueError, json.JSONDecodeError) as exc:
+            print(f"JSON parse error from Spotify API: {exc}")
+            raise ValueError("Invalid JSON response from Spotify API")
 
     async def get_user_profile(self) -> dict[str, Any]:
         """Fetch current authenticated user's profile details (`GET /v1/me`)."""

@@ -25,7 +25,7 @@ def _handle_device_error(exc: Exception) -> str:
                 {
                     "status": "error",
                     "error_code": "RESTRICTION_VIOLATED",
-                    "message": "Playback transfer requires Spotify Premium or device permissions.",
+                    "message": "Target Spotify Connect Device is Restricted",
                 },
                 indent=2,
             )
