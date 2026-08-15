@@ -1,11 +1,8 @@
 """Unit tests for Spotify OAuth PKCE Auth Manager."""
 
-import json
 import time
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
-import pytest
 from src.auth import SpotifyAuthManager, generate_pkce_pair
 from src.config import SpotifySettings
 

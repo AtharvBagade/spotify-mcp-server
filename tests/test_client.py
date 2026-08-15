@@ -2,6 +2,7 @@
 
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 
 from src.client import SpotifyClient
@@ -60,3 +61,69 @@ async def test_spotify_get_user_profile_tool():
         assert parsed_output["id"] == "mcp_user"
         assert parsed_output["display_name"] == "MCP User"
         assert parsed_output["product"] == "premium"
+
+
+@pytest.mark.asyncio
+async def test_client_player_methods():
+    """Test client-level player, devices, and queue request construction."""
+    client = SpotifyClient(auth_manager=MagicMock())
+
+    with patch.object(client, "request", new_callable=AsyncMock) as mock_req:
+        mock_req.return_value = {}
+
+        # get_playback_state
+        await client.get_playback_state(market="US")
+        mock_req.assert_awaited_with("GET", "/me/player", params={"market": "US"})
+
+        # get_currently_playing
+        await client.get_currently_playing(market="GB")
+        mock_req.assert_awaited_with("GET", "/me/player/currently-playing", params={"market": "GB"})
+
+        # get_available_devices
+        await client.get_available_devices()
+        mock_req.assert_awaited_with("GET", "/me/player/devices")
+
+        # transfer_playback
+        await client.transfer_playback(device_id="dev1", play=True)
+        mock_req.assert_awaited_with("PUT", "/me/player", json_data={"device_ids": ["dev1"], "play": True})
+
+        # play with context
+        await client.play(device_id="dev1", context_uri="spotify:album:1", position_ms=5000)
+        mock_req.assert_awaited_with(
+            "PUT",
+            "/me/player/play",
+            params={"device_id": "dev1"},
+            json_data={"context_uri": "spotify:album:1", "position_ms": 5000},
+        )
+
+        # pause
+        await client.pause(device_id="dev1")
+        mock_req.assert_awaited_with("PUT", "/me/player/pause", params={"device_id": "dev1"})
+
+        # next & prev
+        await client.skip_to_next(device_id="dev1")
+        mock_req.assert_awaited_with("POST", "/me/player/next", params={"device_id": "dev1"})
+
+        await client.skip_to_previous()
+        mock_req.assert_awaited_with("POST", "/me/player/previous", params=None)
+
+        # seek & volume
+        await client.seek_to_position(position_ms=10000, device_id="dev1")
+        mock_req.assert_awaited_with("PUT", "/me/player/seek", params={"position_ms": 10000, "device_id": "dev1"})
+
+        await client.set_volume(volume_percent=70, device_id="dev1")
+        mock_req.assert_awaited_with("PUT", "/me/player/volume", params={"volume_percent": 70, "device_id": "dev1"})
+
+        # shuffle & repeat
+        await client.toggle_shuffle(state=True, device_id="dev1")
+        mock_req.assert_awaited_with("PUT", "/me/player/shuffle", params={"state": "true", "device_id": "dev1"})
+
+        await client.set_repeat_mode(state="track", device_id="dev1")
+        mock_req.assert_awaited_with("PUT", "/me/player/repeat", params={"state": "track", "device_id": "dev1"})
+
+        # queue
+        await client.get_queue()
+        mock_req.assert_awaited_with("GET", "/me/player/queue")
+
+        await client.add_to_queue(uri="spotify:track:123", device_id="dev1")
+        mock_req.assert_awaited_with("POST", "/me/player/queue", params={"uri": "spotify:track:123", "device_id": "dev1"})
