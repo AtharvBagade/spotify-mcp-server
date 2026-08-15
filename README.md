@@ -82,6 +82,8 @@ The test suite covers:
 - `tests/test_client.py`: `SpotifyClient` request methods and token refresh retry tests.
 - `tests/test_catalog.py`: Catalog search and metadata tool tests.
 - `tests/test_users.py`: User profile, library, and personalization tool tests.
+- `tests/test_player.py`: Playback controls, queue management, devices, and real-time MCP resource tests.
+- `tests/test_playlists.py`: Playlist CRUD, track addition/removal, reordering/replacement, custom JPEG cover art upload, and `spotify://playlist/{playlist_id}` MCP resource tests.
 
 ---
 
