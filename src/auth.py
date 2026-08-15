@@ -3,24 +3,22 @@
 import base64
 import hashlib
 import json
-import os
 import secrets
 import time
 import urllib.parse
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
-
-import httpx
+from typing import Any
 
 from src.config import SpotifySettings, load_settings
+from src.lib.http import get_sync_http_client
 
 SPOTIFY_AUTH_URL = "https://accounts.spotify.com/authorize"
 SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token"
 
 
-def generate_pkce_pair() -> Tuple[str, str]:
+def generate_pkce_pair() -> tuple[str, str]:
     """Generate a PKCE (code_verifier, code_challenge) tuple.
     
     code_verifier: 64-128 chars URL-safe random string.
@@ -37,8 +35,8 @@ def generate_pkce_pair() -> Tuple[str, str]:
 class OAuthCallbackHandler(BaseHTTPRequestHandler):
     """HTTP request handler for capturing Spotify OAuth callback redirect."""
 
-    captured_code: Optional[str] = None
-    captured_error: Optional[str] = None
+    captured_code: str | None = None
+    captured_error: str | None = None
 
     def do_GET(self):
         """Handle incoming OAuth redirect GET request."""
@@ -84,17 +82,23 @@ class OAuthCallbackHandler(BaseHTTPRequestHandler):
 
     def log_message(self, format, *args):
         """Suppress default HTTP server access logs."""
-        pass
 
 
 class SpotifyAuthManager:
     """Manages Spotify OAuth 2.0 PKCE authentication flow and token persistence."""
 
-    def __init__(self, settings: Optional[SpotifySettings] = None):
+    def __init__(self, settings: SpotifySettings | None = None):
         self.settings = settings or load_settings()
-        self.cache_path = Path(self.settings.spotify_token_cache_path)
+        # Expand user directory (e.g. `~/`) if present
+        raw_path = Path(self.settings.spotify_token_cache_path).expanduser()
+        # If relative, resolve against project root to prevent Read-only file system errors
+        # when spawned by external MCP hosts (like Claude Desktop) with CWD set to `/`
+        if not raw_path.is_absolute():
+            project_root = Path(__file__).resolve().parent.parent
+            raw_path = project_root / raw_path
+        self.cache_path = raw_path
 
-    def load_token_cache(self) -> Optional[Dict[str, Any]]:
+    def load_token_cache(self) -> dict[str, Any] | None:
         """Load cached token dictionary from disk if available."""
         if not self.cache_path.exists():
             return None
@@ -104,17 +108,17 @@ class SpotifyAuthManager:
         except Exception:
             return None
 
-    def save_token_cache(self, token_data: Dict[str, Any]) -> None:
+    def save_token_cache(self, token_data: dict[str, Any]) -> None:
         """Save token dictionary to disk."""
         with open(self.cache_path, "w", encoding="utf-8") as f:
             json.dump(token_data, f, indent=2)
 
-    def is_token_expired(self, token_data: Dict[str, Any], buffer_seconds: int = 60) -> bool:
+    def is_token_expired(self, token_data: dict[str, Any], buffer_seconds: int = 60) -> bool:
         """Check if the access token is expired or within safety buffer seconds of expiring."""
         expires_at = token_data.get("expires_at", 0)
         return time.time() + buffer_seconds >= expires_at
 
-    def refresh_access_token(self, refresh_token: str) -> Dict[str, Any]:
+    def refresh_access_token(self, refresh_token: str) -> dict[str, Any]:
         """Exchange refresh token for a new access token via Spotify OAuth endpoint."""
         payload = {
             "grant_type": "refresh_token",
@@ -124,10 +128,10 @@ class SpotifyAuthManager:
         if self.settings.spotify_client_secret:
             payload["client_secret"] = self.settings.spotify_client_secret
 
-        with httpx.Client() as client:
-            response = client.post(SPOTIFY_TOKEN_URL, data=payload)
-            response.raise_for_status()
-            data = response.json()
+        client = get_sync_http_client()
+        response = client.post(SPOTIFY_TOKEN_URL, data=payload)
+        response.raise_for_status()
+        data = response.json()
 
         expires_in = data.get("expires_in", 3600)
         token_data = self.load_token_cache() or {}
@@ -143,7 +147,7 @@ class SpotifyAuthManager:
         self.save_token_cache(token_data)
         return token_data
 
-    def authenticate(self) -> Dict[str, Any]:
+    def authenticate(self) -> dict[str, Any]:
         """Perform full interactive OAuth 2.0 PKCE browser authentication flow."""
         if not self.settings.spotify_client_id:
             raise ValueError(
@@ -199,10 +203,10 @@ class SpotifyAuthManager:
         if self.settings.spotify_client_secret:
             token_payload["client_secret"] = self.settings.spotify_client_secret
 
-        with httpx.Client() as client:
-            response = client.post(SPOTIFY_TOKEN_URL, data=token_payload)
-            response.raise_for_status()
-            data = response.json()
+        client = get_sync_http_client()
+        response = client.post(SPOTIFY_TOKEN_URL, data=token_payload)
+        response.raise_for_status()
+        data = response.json()
 
         expires_in = data.get("expires_in", 3600)
         token_data = {
