@@ -5,6 +5,7 @@ configurable timeouts, default headers, and singleton management for tools
 and scripts across the service.
 """
 
+import json
 from typing import Any, Self
 
 import httpx
@@ -127,9 +128,13 @@ class HTTPClient:
         """Execute request and parse JSON response, raising for HTTP status errors."""
         response = await self.request(method, url, **kwargs)
         response.raise_for_status()
-        if response.status_code == 204:
+        if response.status_code in (202, 204) or not len(response.text):
             return {}
-        return response.json()
+        try:
+            return response.json()
+        except (ValueError, json.JSONDecodeError) as exc:
+            print(f"JSON parse error from Spotify API: {exc}")
+            raise ValueError("Invalid JSON response from Spotify API")
 
 
 class SyncHTTPClient:
@@ -236,9 +241,13 @@ class SyncHTTPClient:
         """Execute sync request and parse JSON response, raising for HTTP status errors."""
         response = self.request(method, url, **kwargs)
         response.raise_for_status()
-        if response.status_code == 204:
+        if response.status_code in (202, 204) or not len(response.text):
             return {}
-        return response.json()
+        try:
+            return response.json()
+        except (ValueError, json.JSONDecodeError) as exc:
+            print(f"JSON parse error from Spotify API: {exc}")
+            raise ValueError("Invalid JSON response from Spotify API")
 
 
 # Singletons / Global Managed Instances
