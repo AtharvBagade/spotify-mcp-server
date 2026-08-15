@@ -38,7 +38,6 @@ def main():
         settings = load_settings()
         console.print(f"[bold white]Server Name:[/bold white] {settings.mcp_server_name}")
         console.print(f"[bold white]Redirect URI:[/bold white] {settings.spotify_redirect_uri}")
-        console.print("\n[bold yellow]Milestone 1 Core Initialized![/bold yellow]")
         console.print("[dim]Run with --stdio to launch MCP server transport for LLM clients.[/dim]")
 
 

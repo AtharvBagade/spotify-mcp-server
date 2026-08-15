@@ -29,6 +29,14 @@ The server bridges Spotify functionality natively to AI models across three core
 
 ---
 
+## 🏗️ Architecture & Core Components
+
+- **HTTP Library Layer (`src/lib/http.py`)**: Built on top of `httpx`. Exposes managed async (`HTTPClient`) and synchronous (`SyncHTTPClient`) clients with connection pooling, configurable timeouts, method shortcuts (`get`, `post`, `request_json`), and singleton instance management.
+- **Auth Manager (`src/auth.py`)**: Handles Spotify OAuth 2.0 PKCE authentication, automatic local server callback listening (`http://127.0.0.1:8888/callback`), token caching, and background refresh.
+- **Spotify Client (`src/client.py`)**: High-level async client wrapping the Spotify Web API, automatically attached to `HTTPClient` for connection pooling and token management.
+
+---
+
 ## ⚙️ Environment Setup
 
 1. Copy `.env.example` to `.env`:
@@ -57,6 +65,23 @@ pip install -e ".[dev]"
 # Run server entrypoint
 python3 main.py
 ```
+
+---
+
+## 🧪 Testing
+
+Run the test suite using `pytest`:
+
+```bash
+pytest
+```
+
+The test suite covers:
+- `tests/test_http_lib.py`: Unit tests for `HTTPClient`, `SyncHTTPClient`, context managers, singletons, and exception handling.
+- `tests/test_auth.py`: OAuth PKCE flow and token cache management tests.
+- `tests/test_client.py`: `SpotifyClient` request methods and token refresh retry tests.
+- `tests/test_catalog.py`: Catalog search and metadata tool tests.
+- `tests/test_users.py`: User profile, library, and personalization tool tests.
 
 ---
 
