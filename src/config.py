@@ -2,9 +2,28 @@
 
 import os
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Full set of OAuth scopes required for Spotify MCP Server features
+DEFAULT_SPOTIFY_SCOPES: List[str] = [
+    "user-read-private",
+    "user-read-email",
+    "user-read-playback-state",
+    "user-modify-playback-state",
+    "user-read-currently-playing",
+    "playlist-read-private",
+    "playlist-read-collaborative",
+    "playlist-modify-public",
+    "playlist-modify-private",
+    "user-library-read",
+    "user-library-modify",
+    "user-top-read",
+    "user-read-recently-played",
+    "user-follow-read",
+    "user-follow-modify",
+]
 
 
 class SpotifySettings(BaseSettings):
@@ -12,11 +31,11 @@ class SpotifySettings(BaseSettings):
 
     spotify_client_id: str = Field(
         default="",
-        description="Spotify App Client ID from developer dashboard",
+        description="Spotify App Client ID from Spotify Developer Dashboard",
     )
-    spotify_client_secret: str = Field(
-        default="",
-        description="Spotify App Client Secret",
+    spotify_client_secret: Optional[str] = Field(
+        default=None,
+        description="Optional Spotify App Client Secret",
     )
     spotify_redirect_uri: str = Field(
         default="http://127.0.0.1:8888/callback",
@@ -30,6 +49,10 @@ class SpotifySettings(BaseSettings):
         default="Spotify MCP Server",
         description="Display name for the MCP server",
     )
+    scopes: List[str] = Field(
+        default_factory=lambda: DEFAULT_SPOTIFY_SCOPES,
+        description="OAuth scopes required for full Spotify features",
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -39,5 +62,5 @@ class SpotifySettings(BaseSettings):
 
 
 def load_settings() -> SpotifySettings:
-    """Load configuration settings."""
+    """Load and return SpotifySettings configuration."""
     return SpotifySettings()

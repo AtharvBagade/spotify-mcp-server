@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Spotify MCP Server - Model Context Protocol Server for Spotify API integration."""
+"""Spotify MCP Server entrypoint launcher."""
 
 import sys
+import argparse
 from rich.console import Console
 from rich.panel import Panel
 
 from src.config import load_settings
+from src.mcp_server import mcp
 
 console = Console()
 
@@ -20,12 +22,24 @@ def display_header():
 
 
 def main():
-    """Main entrypoint for Spotify MCP Server."""
-    display_header()
-    settings = load_settings()
-    console.print(f"[bold white]Server Name:[/bold white] {settings.mcp_server_name}")
-    console.print(f"[bold white]Redirect URI:[/bold white] {settings.spotify_redirect_uri}")
-    console.print("\n[bold yellow]Spotify MCP Server initialized. Ready for Milestone 1 setup.[/bold yellow]")
+    """Main CLI entrypoint."""
+    parser = argparse.ArgumentParser(description="Spotify MCP Server Launcher")
+    parser.add_argument(
+        "--stdio",
+        action="store_true",
+        help="Run FastMCP server in STDIO mode for Claude Desktop / Cursor integration",
+    )
+    args = parser.parse_args()
+
+    if args.stdio:
+        mcp.run(transport="stdio")
+    else:
+        display_header()
+        settings = load_settings()
+        console.print(f"[bold white]Server Name:[/bold white] {settings.mcp_server_name}")
+        console.print(f"[bold white]Redirect URI:[/bold white] {settings.spotify_redirect_uri}")
+        console.print("\n[bold yellow]Milestone 1 Core Initialized![/bold yellow]")
+        console.print("[dim]Run with --stdio to launch MCP server transport for LLM clients.[/dim]")
 
 
 if __name__ == "__main__":
