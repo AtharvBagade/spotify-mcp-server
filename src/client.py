@@ -1,5 +1,6 @@
 """Async Spotify API Client wrapper."""
 
+import json
 from typing import Any
 
 from src.auth import SpotifyAuthManager
@@ -39,6 +40,8 @@ class SpotifyClient:
         endpoint: str,
         params: dict[str, Any] | None = None,
         json_data: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+        data: Any | None = None,
     ) -> dict[str, Any]:
         """Make an authenticated async request to the Spotify Web API."""
         url = f"{SPOTIFY_API_BASE_URL}{endpoint}" if endpoint.startswith("/") else f"{SPOTIFY_API_BASE_URL}/{endpoint}"
@@ -47,6 +50,8 @@ class SpotifyClient:
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
         }
+        if headers:
+            req_headers.update(headers)
 
         response = await self.http_client.request(
             method=method.upper(),
@@ -54,6 +59,7 @@ class SpotifyClient:
             headers=req_headers,
             params=params,
             json=json_data,
+            data=data,
         )
 
         # Retry once on 401 Unauthorized by forcing a token refresh
@@ -69,12 +75,17 @@ class SpotifyClient:
                     headers=req_headers,
                     params=params,
                     json=json_data,
+                    data=data,
                 )
 
         response.raise_for_status()
-        if response.status_code == 204:
+        if response.status_code in (202, 204) or not len(response.text):
             return {}
-        return response.json()
+        try:
+            return response.json()
+        except (ValueError, json.JSONDecodeError) as exc:
+            print(f"JSON parse error from Spotify API: {exc}")
+            raise ValueError("Invalid JSON response from Spotify API")
 
     async def get_user_profile(self) -> dict[str, Any]:
         """Fetch current authenticated user's profile details (`GET /v1/me`)."""
@@ -151,6 +162,109 @@ class SpotifyClient:
     async def get_saved_tracks(self, limit: int = 20, offset: int = 0) -> dict[str, Any]:
         """Fetch user's saved ("Liked Songs") tracks (`GET /v1/me/tracks`)."""
         return await self.request("GET", "/me/tracks", params={"limit": limit, "offset": offset})
+
+    async def get_playback_state(self, market: str | None = None) -> dict[str, Any]:
+        """Fetch current playback state including active device, progress, and track (`GET /v1/me/player`)."""
+        params = {"market": market} if market else None
+        return await self.request("GET", "/me/player", params=params)
+
+    async def get_currently_playing(self, market: str | None = None) -> dict[str, Any]:
+        """Fetch currently playing track/episode metadata (`GET /v1/me/player/currently-playing`)."""
+        params = {"market": market} if market else None
+        return await self.request("GET", "/me/player/currently-playing", params=params)
+
+    async def get_available_devices(self) -> dict[str, Any]:
+        """Fetch user's available connected Spotify Connect devices (`GET /v1/me/player/devices`)."""
+        return await self.request("GET", "/me/player/devices")
+
+    async def transfer_playback(self, device_id: str, play: bool = False) -> dict[str, Any]:
+        """Transfer playback to a specified device (`PUT /v1/me/player`)."""
+        payload = {"device_ids": [device_id], "play": play}
+        return await self.request("PUT", "/me/player", json_data=payload)
+
+    async def play(
+        self,
+        device_id: str | None = None,
+        context_uri: str | None = None,
+        uris: list[str] | None = None,
+        offset: dict[str, Any] | None = None,
+        position_ms: int | None = None,
+    ) -> dict[str, Any]:
+        """Start or resume playback (`PUT /v1/me/player/play`)."""
+        params = {"device_id": device_id} if device_id else None
+        payload: dict[str, Any] = {}
+        if context_uri:
+            payload["context_uri"] = context_uri
+        elif uris:
+            payload["uris"] = uris
+
+        if offset:
+            payload["offset"] = offset
+        if position_ms is not None:
+            payload["position_ms"] = position_ms
+
+        return await self.request(
+            "PUT",
+            "/me/player/play",
+            params=params,
+            json_data=payload if payload else None,
+        )
+
+    async def pause(self, device_id: str | None = None) -> dict[str, Any]:
+        """Pause playback on active device (`PUT /v1/me/player/pause`)."""
+        params = {"device_id": device_id} if device_id else None
+        return await self.request("PUT", "/me/player/pause", params=params)
+
+    async def skip_to_next(self, device_id: str | None = None) -> dict[str, Any]:
+        """Skip to next track in queue/context (`POST /v1/me/player/next`)."""
+        params = {"device_id": device_id} if device_id else None
+        return await self.request("POST", "/me/player/next", params=params)
+
+    async def skip_to_previous(self, device_id: str | None = None) -> dict[str, Any]:
+        """Skip to previous track (`POST /v1/me/player/previous`)."""
+        params = {"device_id": device_id} if device_id else None
+        return await self.request("POST", "/me/player/previous", params=params)
+
+    async def seek_to_position(self, position_ms: int, device_id: str | None = None) -> dict[str, Any]:
+        """Seek to position in milliseconds on active device (`PUT /v1/me/player/seek`)."""
+        params: dict[str, Any] = {"position_ms": position_ms}
+        if device_id:
+            params["device_id"] = device_id
+        return await self.request("PUT", "/me/player/seek", params=params)
+
+    async def set_volume(self, volume_percent: int, device_id: str | None = None) -> dict[str, Any]:
+        """Set volume percentage (0-100) on active device (`PUT /v1/me/player/volume`)."""
+        params: dict[str, Any] = {"volume_percent": volume_percent}
+        if device_id:
+            params["device_id"] = device_id
+        return await self.request("PUT", "/me/player/volume", params=params)
+
+    async def toggle_shuffle(self, state: bool, device_id: str | None = None) -> dict[str, Any]:
+        """Toggle shuffle on/off (`PUT /v1/me/player/shuffle`)."""
+        params: dict[str, Any] = {"state": "true" if state else "false"}
+        if device_id:
+            params["device_id"] = device_id
+        return await self.request("PUT", "/me/player/shuffle", params=params)
+
+    async def set_repeat_mode(self, state: str, device_id: str | None = None) -> dict[str, Any]:
+        """Set repeat mode ('off', 'track', 'context') (`PUT /v1/me/player/repeat`)."""
+        params: dict[str, Any] = {"state": state}
+        if device_id:
+            params["device_id"] = device_id
+        return await self.request("PUT", "/me/player/repeat", params=params)
+
+    async def get_queue(self) -> dict[str, Any]:
+        """Fetch user's current playback queue (`GET /v1/me/player/queue`)."""
+        return await self.request("GET", "/me/player/queue")
+
+    async def add_to_queue(self, uri: str, device_id: str | None = None) -> dict[str, Any]:
+        """Append track or episode URI to the playback queue (`POST /v1/me/player/queue`)."""
+        params: dict[str, Any] = {"uri": uri}
+        if device_id:
+            params["device_id"] = device_id
+        return await self.request("POST", "/me/player/queue", params=params)
+
+
 
 
 # Global singleton instance

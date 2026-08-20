@@ -1,7 +1,7 @@
 """User profile, library, and personalization tools for Spotify MCP Server."""
 
 import json
-from typing import Any, Dict, Optional
+
 from src.client import get_spotify_client
 
 

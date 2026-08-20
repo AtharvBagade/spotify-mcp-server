@@ -1,16 +1,17 @@
 """Catalog search and metadata retrieval tools for Spotify MCP Server."""
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from src.client import get_spotify_client
 
 
 async def spotify_search_catalog(
     query: str,
-    search_types: Optional[List[str]] = None,
+    search_types: list[str] | None = None,
     limit: int = 10,
     offset: int = 0,
-    market: Optional[str] = None,
+    market: str | None = None,
 ) -> str:
     """Search the Spotify catalog across tracks, artists, albums, playlists, etc.
 
@@ -33,7 +34,7 @@ async def spotify_search_catalog(
         market=market,
     )
 
-    formatted_results: Dict[str, Any] = {}
+    formatted_results: dict[str, Any] = {}
 
     if "tracks" in raw_results:
         formatted_results["tracks"] = [

@@ -136,3 +136,30 @@ def test_exception_reexports():
     assert issubclass(RequestError, httpx.RequestError)
     assert issubclass(TimeoutException, httpx.TimeoutException)
     assert issubclass(NetworkError, httpx.NetworkError)
+
+
+@pytest.mark.asyncio
+async def test_request_json_empty_and_no_content():
+    """Verify request_json returns {} for 204 or empty/whitespace responses without raising JSONDecodeError."""
+    # Async
+    mock_httpx_async = AsyncMock(spec=httpx.AsyncClient)
+    resp_204 = MagicMock(spec=httpx.Response)
+    resp_204.status_code = 204
+    resp_204.content = b""
+    resp_204.text = ""
+    mock_httpx_async.request.return_value = resp_204
+
+    client_async = HTTPClient(client=mock_httpx_async)
+    assert await client_async.request_json("PUT", "/endpoint") == {}
+
+    # Sync
+    mock_httpx_sync = MagicMock(spec=httpx.Client)
+    resp_200_empty = MagicMock(spec=httpx.Response)
+    resp_200_empty.status_code = 200
+    resp_200_empty.content = b"   "
+    resp_200_empty.text = "   "
+    mock_httpx_sync.request.return_value = resp_200_empty
+
+    client_sync = SyncHTTPClient(client=mock_httpx_sync)
+    assert client_sync.request_json("PUT", "/endpoint") == {}
+

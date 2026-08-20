@@ -1,13 +1,10 @@
 """Configuration settings for Spotify MCP Server."""
 
-import os
-from pathlib import Path
-from typing import List, Optional
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Full set of OAuth scopes required for Spotify MCP Server features
-DEFAULT_SPOTIFY_SCOPES: List[str] = [
+DEFAULT_SPOTIFY_SCOPES: list[str] = [
     "user-read-private",
     "user-read-email",
     "user-read-playback-state",
@@ -33,7 +30,7 @@ class SpotifySettings(BaseSettings):
         default="",
         description="Spotify App Client ID from Spotify Developer Dashboard",
     )
-    spotify_client_secret: Optional[str] = Field(
+    spotify_client_secret: str | None = Field(
         default=None,
         description="Optional Spotify App Client Secret",
     )
@@ -49,7 +46,7 @@ class SpotifySettings(BaseSettings):
         default="Spotify MCP Server",
         description="Display name for the MCP server",
     )
-    scopes: List[str] = Field(
+    scopes: list[str] = Field(
         default_factory=lambda: DEFAULT_SPOTIFY_SCOPES,
         description="OAuth scopes required for full Spotify features",
     )
