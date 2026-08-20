@@ -2,18 +2,19 @@
 
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 
-from src.tools.users import (
-    spotify_get_top_tracks,
-    spotify_get_top_artists,
-    spotify_get_recently_played,
-    spotify_get_saved_tracks,
-)
 from src.mcp_server import (
     get_user_profile_resource,
-    get_user_top_tracks_resource,
     get_user_top_artists_resource,
+    get_user_top_tracks_resource,
+)
+from src.tools.users import (
+    spotify_get_recently_played,
+    spotify_get_saved_tracks,
+    spotify_get_top_artists,
+    spotify_get_top_tracks,
 )
 
 

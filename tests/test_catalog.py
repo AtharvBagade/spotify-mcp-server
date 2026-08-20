@@ -2,13 +2,14 @@
 
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 
 from src.tools.catalog import (
-    spotify_search_catalog,
+    spotify_get_album,
     spotify_get_artist,
     spotify_get_artist_top_tracks,
-    spotify_get_album,
+    spotify_search_catalog,
 )
 
 
