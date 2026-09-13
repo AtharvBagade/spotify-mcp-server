@@ -203,8 +203,8 @@ async def test_spotify_create_playlist_tool():
 
 @pytest.mark.asyncio
 async def test_spotify_get_user_playlists_tool():
-    """Test spotify_get_user_playlists tool output formatting."""
-    mock_res = {
+    """Test spotify_get_user_playlists tool output formatting with legacy and modern schemas."""
+    mock_res_legacy = {
         "items": [
             {
                 "id": "pl1",
@@ -223,7 +223,7 @@ async def test_spotify_get_user_playlists_tool():
 
     with patch("src.tools.playlists.get_spotify_client") as mock_get_client:
         mock_client = MagicMock()
-        mock_client.get_user_playlists = AsyncMock(return_value=mock_res)
+        mock_client.get_user_playlists = AsyncMock(return_value=mock_res_legacy)
         mock_get_client.return_value = mock_client
 
         output = await spotify_get_user_playlists(limit=10)
@@ -234,11 +234,41 @@ async def test_spotify_get_user_playlists_tool():
         assert data[0]["tracks_total"] == 45
         assert data[0]["image_url"] == "https://img.com/cover.jpg"
 
+    # Test modern schema where playlist items reference uses 'items' instead of 'tracks'
+    mock_res_modern = {
+        "items": [
+            {
+                "id": "pl2",
+                "name": "Lo-Fi Beats",
+                "description": "Focus tunes",
+                "owner": {"display_name": "BeatMaker"},
+                "items": {"total": 80},
+                "public": False,
+                "collaborative": False,
+                "snapshot_id": "snap_lofi",
+                "uri": "spotify:playlist:pl2",
+                "images": [],
+            }
+        ]
+    }
+
+    with patch("src.tools.playlists.get_spotify_client") as mock_get_client:
+        mock_client = MagicMock()
+        mock_client.get_user_playlists = AsyncMock(return_value=mock_res_modern)
+        mock_get_client.return_value = mock_client
+
+        output = await spotify_get_user_playlists(limit=10)
+        data = json.loads(output)
+
+        assert len(data) == 1
+        assert data[0]["name"] == "Lo-Fi Beats"
+        assert data[0]["tracks_total"] == 80
+
 
 @pytest.mark.asyncio
 async def test_spotify_get_playlist_tool():
-    """Test spotify_get_playlist tool output formatting."""
-    mock_res = {
+    """Test spotify_get_playlist tool output formatting with legacy tracks/track and modern items/item schemas."""
+    mock_res_legacy = {
         "id": "pl_full",
         "name": "Full Mix",
         "description": "Great hits",
@@ -271,7 +301,7 @@ async def test_spotify_get_playlist_tool():
 
     with patch("src.tools.playlists.get_spotify_client") as mock_get_client:
         mock_client = MagicMock()
-        mock_client.get_playlist = AsyncMock(return_value=mock_res)
+        mock_client.get_playlist = AsyncMock(return_value=mock_res_legacy)
         mock_get_client.return_value = mock_client
 
         output = await spotify_get_playlist("spotify:playlist:pl_full")
@@ -283,11 +313,56 @@ async def test_spotify_get_playlist_tool():
         assert data["tracks"][0]["name"] == "Track Ten"
         mock_client.get_playlist.assert_awaited_with("pl_full", market=None)
 
+    # Test modern schema where playlist contains 'items' key and track is stored under 'item'
+    mock_res_modern = {
+        "id": "pl_modern",
+        "name": "Modern Mix",
+        "description": "Updated hits",
+        "owner": {"display_name": "NewCurator"},
+        "followers": {"total": 500},
+        "public": True,
+        "collaborative": False,
+        "snapshot_id": "snap_mod",
+        "uri": "spotify:playlist:pl_modern",
+        "external_urls": {"spotify": "https://open.spotify.com/playlist/pl_modern"},
+        "images": [{"url": "https://img.com/mod.jpg"}],
+        "items": {
+            "total": 1,
+            "items": [
+                {
+                    "added_at": "2026-08-02T00:00:00Z",
+                    "item": {
+                        "id": "t20",
+                        "name": "Track Twenty",
+                        "artists": [{"name": "Artist Twenty"}],
+                        "album": {"name": "Album Twenty"},
+                        "duration_ms": 200000,
+                        "popularity": 85,
+                        "uri": "spotify:track:t20",
+                    },
+                }
+            ],
+        },
+    }
+
+    with patch("src.tools.playlists.get_spotify_client") as mock_get_client:
+        mock_client = MagicMock()
+        mock_client.get_playlist = AsyncMock(return_value=mock_res_modern)
+        mock_get_client.return_value = mock_client
+
+        output = await spotify_get_playlist("pl_modern")
+        data = json.loads(output)
+
+        assert data["id"] == "pl_modern"
+        assert len(data["tracks"]) == 1
+        assert data["tracks"][0]["name"] == "Track Twenty"
+        assert data["tracks"][0]["artists"] == ["Artist Twenty"]
+
 
 @pytest.mark.asyncio
 async def test_spotify_get_playlist_items_tool():
-    """Test spotify_get_playlist_items tool output formatting."""
-    mock_res = {
+    """Test spotify_get_playlist_items tool output formatting with legacy and modern schemas."""
+    mock_res_legacy = {
         "items": [
             {
                 "added_at": "2026-08-01T00:00:00Z",
@@ -307,7 +382,7 @@ async def test_spotify_get_playlist_items_tool():
 
     with patch("src.tools.playlists.get_spotify_client") as mock_get_client:
         mock_client = MagicMock()
-        mock_client.get_playlist_items = AsyncMock(return_value=mock_res)
+        mock_client.get_playlist_items = AsyncMock(return_value=mock_res_legacy)
         mock_get_client.return_value = mock_client
 
         output = await spotify_get_playlist_items("pl123", limit=10)
@@ -315,6 +390,37 @@ async def test_spotify_get_playlist_items_tool():
 
         assert len(data) == 1
         assert data[0]["name"] == "One More Time"
+        assert data[0]["artists"] == ["Daft Punk"]
+
+    # Test modern schema with 'item' instead of 'track'
+    mock_res_modern = {
+        "items": [
+            {
+                "added_at": "2026-08-02T00:00:00Z",
+                "item": {
+                    "id": "t2",
+                    "name": "Harder, Better, Faster, Stronger",
+                    "artists": [{"name": "Daft Punk"}],
+                    "album": {"name": "Discovery"},
+                    "duration_ms": 224000,
+                    "popularity": 92,
+                    "uri": "spotify:track:t2",
+                    "is_local": False,
+                },
+            }
+        ]
+    }
+
+    with patch("src.tools.playlists.get_spotify_client") as mock_get_client:
+        mock_client = MagicMock()
+        mock_client.get_playlist_items = AsyncMock(return_value=mock_res_modern)
+        mock_get_client.return_value = mock_client
+
+        output = await spotify_get_playlist_items("pl123", limit=10)
+        data = json.loads(output)
+
+        assert len(data) == 1
+        assert data[0]["name"] == "Harder, Better, Faster, Stronger"
         assert data[0]["artists"] == ["Daft Punk"]
 
 

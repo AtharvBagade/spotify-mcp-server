@@ -82,7 +82,7 @@ async def spotify_search_catalog(
                 "id": item.get("id"),
                 "name": item.get("name"),
                 "owner": item.get("owner", {}).get("display_name"),
-                "tracks_total": item.get("tracks", {}).get("total", 0),
+                "tracks_total": (item.get("items") or item.get("tracks") or {}).get("total", 0) if isinstance(item.get("items") or item.get("tracks"), dict) else 0,
                 "uri": item.get("uri"),
             }
             for item in raw_results["playlists"].get("items", [])

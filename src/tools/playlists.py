@@ -95,12 +95,14 @@ async def spotify_get_user_playlists(limit: int = 20, offset: int = 0) -> str:
     for item in raw.get("items", []):
         images = item.get("images", [])
         image_url = images[0]["url"] if images else None
+        tracks_ref = item.get("items") or item.get("tracks") or {}
+        tracks_total = tracks_ref.get("total", 0) if isinstance(tracks_ref, dict) else 0
         formatted_items.append({
             "id": item.get("id"),
             "name": item.get("name"),
             "description": item.get("description"),
             "owner": item.get("owner", {}).get("display_name") or item.get("owner", {}).get("id"),
-            "tracks_total": item.get("items", {}).get("total", 0),
+            "tracks_total": tracks_total,
             "public": item.get("public"),
             "collaborative": item.get("collaborative"),
             "snapshot_id": item.get("snapshot_id"),
@@ -125,16 +127,16 @@ async def spotify_get_playlist(playlist_id: str, market: Optional[str] = None) -
     client = get_spotify_client()
     raw = await client.get_playlist(clean_id, market=market)
 
-    tracks_data = raw.get("tracks", {})
+    tracks_data = raw.get("items") or raw.get("tracks") or {}
     formatted_tracks = []
     for item in tracks_data.get("items", []):
-        track = item.get("track")
+        track = item.get("item") or item.get("track")
         if track:
             formatted_tracks.append({
                 "id": track.get("id"),
                 "name": track.get("name"),
                 "artists": [a.get("name") for a in track.get("artists", [])],
-                "album": track.get("album", {}).get("name"),
+                "album": track.get("album", {}).get("name") if isinstance(track.get("album"), dict) else None,
                 "duration_ms": track.get("duration_ms"),
                 "popularity": track.get("popularity"),
                 "uri": track.get("uri"),
@@ -185,13 +187,13 @@ async def spotify_get_playlist_items(
 
     formatted_items = []
     for item in raw.get("items", []):
-        track = item.get("track")
+        track = item.get("item") or item.get("track")
         if track:
             formatted_items.append({
                 "id": track.get("id"),
                 "name": track.get("name"),
                 "artists": [a.get("name") for a in track.get("artists", [])],
-                "album": track.get("album", {}).get("name"),
+                "album": track.get("album", {}).get("name") if isinstance(track.get("album"), dict) else None,
                 "duration_ms": track.get("duration_ms"),
                 "popularity": track.get("popularity"),
                 "uri": track.get("uri"),
