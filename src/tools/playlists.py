@@ -100,7 +100,7 @@ async def spotify_get_user_playlists(limit: int = 20, offset: int = 0) -> str:
             "name": item.get("name"),
             "description": item.get("description"),
             "owner": item.get("owner", {}).get("display_name") or item.get("owner", {}).get("id"),
-            "tracks_total": item.get("items", {}).get("total", 0),
+            "tracks_total": item.get("tracks", {}).get("total", 0),
             "public": item.get("public"),
             "collaborative": item.get("collaborative"),
             "snapshot_id": item.get("snapshot_id"),
